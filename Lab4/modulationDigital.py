@@ -13,13 +13,12 @@ K = 4             # Sampling rate.
 # Input: Long of array.
 # Output: Random array of bits.
 def generateInput(long):
-    input = []
-
+    bits = []
     i = 0
     while i < long:
-        input.append(random.randint(0, 1))
+        bits.append(random.randint(0, 1))
         i += 1
-    return input
+    return bits
 
 # Function that makes a digital modulation OOK.
 # Input: Amplitude, bit rate, array of bits.
@@ -90,7 +89,7 @@ def demodulator(signal, rate, A, data):
     while i < data:
         section = signal[int((i * K * FREQUENCY) / rate): int((i * K * FREQUENCY) / rate + (K * FREQUENCY) / rate)]
         avg = np.average(np.absolute(section))
-        if avg <= A*0.45:
+        if avg <= A*0.35:
             read.append(0)
         else:
             read.append(1)
@@ -107,7 +106,7 @@ def errorsCount(input, read):
         if read[i] != input[i]:
             errors += 1
         i += 1
-    return errors
+    return errors / len(input)
 
 # Function that show a graph.
 # Input: Time, signal, title, axis x label, axis y label.
@@ -122,13 +121,13 @@ def showGraph(time, signal, title, xlabel, ylabel):
 # Section to test the functions.
 if len(sys.argv) == 2 and sys.argv[1] == "test":
     long = 5
-    input = generateInput(long)
-    SNR = 5
+    bits = generateInput(long)
+    SNR = 10
     rate = 500
     A = 10
-    T = len(input) / rate
+    T = len(bits) / rate
 
-    signal = modulator(A, rate, input)
+    signal = modulator(A, rate, bits)
     time = np.linspace(0, T, num=len(signal), endpoint=False)
 
     showGraph(time, signal,
@@ -149,7 +148,7 @@ if len(sys.argv) == 2 and sys.argv[1] == "test":
 
     realSignal = channel(signal, noise)
 
-    showGraph(time, noise,
+    showGraph(time, realSignal,
               title="Señal con ruido",
               xlabel="Tiempo (s)",
               ylabel="Señal"
@@ -157,16 +156,16 @@ if len(sys.argv) == 2 and sys.argv[1] == "test":
 
     read = demodulator(realSignal, rate, A, long)
 
-    print("Bits originales: ", input)
+    print("Bits originales: ", bits)
     print("Bits demodulados: ", read)
 
     exit()
 
 if __name__ == "__main__":
     long = 100000
-    input = generateInput(long)
-    SNRlist = np.arange(-20,5, step=1)
-    rateList = [500, 1000, 1500]
+    bits = generateInput(long)
+    SNRlist = np.arange(-2,9, step=0.5)
+    rateList = [1000, 2000, 3000]
 
     errors = np.empty((len(rateList), len(SNRlist)))
 
@@ -174,21 +173,20 @@ if __name__ == "__main__":
     i = 0
     while i < len(rateList):
         rate = rateList[i]
-        T = len(input) / rate
+        T = len(bits) / rate
         print("-------------", rate,"-------------")
         j = 0
         while j < len(SNRlist) :
             SNRdb = SNRlist[j]
             SNRlineal = SNRdb2lineal(SNRdb)
             print("             ", SNRdb, "             ")
-            signal = modulator(A, rate, input)
+            signal = modulator(A, rate, bits)
             time = np.linspace(0, T, num=len(signal), endpoint=False)
             power = signalPower(signal, time, T)
             noise = AWGN(power, SNRlineal, len(time))
             realSignal = channel(signal, noise)
             read = demodulator(realSignal, rate, A, long)
-            error = errorsCount(input, read)
-            errors[i][j] = (error / len(input))
+            errors[i][j] = errorsCount(bits, read)
             j += 1
         i += 1
 
